@@ -195,13 +195,17 @@ label { display: grid; gap: 5px; font-weight: 700; font-size: 12px; letter-spaci
 .rcat h4 { margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--display); font-weight: 600; font-size: 22px; line-height: 1; letter-spacing: .04em; text-transform: uppercase; color: var(--gc); }
 .rcat h4 small { font-family: var(--body); font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--dim); }
 .rcat h4 small.ok { color: var(--venom); }
-.rtrial { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 6px 4px; background: transparent; border: 0; border-top: 1px solid rgba(255,255,255,.05); color: var(--steel); font: 600 15px var(--body); text-align: left; cursor: pointer; }
+.rtrial { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border-top: 1px solid rgba(255,255,255,.05); }
+.rtog { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; padding: 6px 4px; min-height: 40px; background: transparent; border: 0; color: var(--steel); font: 600 15px var(--body); text-align: left; cursor: pointer; }
+.rtog:hover { color: var(--chalk); }
+.rdate { width: 136px; min-height: 34px; padding: 4px 6px; background: #0b100b; color: var(--chalk); border: 1px solid var(--rule); font: 600 14px var(--body); font-variant-numeric: tabular-nums; color-scheme: dark; }
+.rdate:focus { outline: none; border-color: var(--gc); box-shadow: 0 0 0 2px rgba(255,255,255,.08); }
+.rdate.val { display: block; width: auto; border: 0; background: transparent; padding: 4px 2px; color: var(--steel); font-size: 13.5px; min-height: 0; }
 .rtrial:first-of-type { border-top: 0; }
-.rtrial .box { border-color: #5f6d5a; }
-.rtrial[aria-pressed="true"] { color: #fff; }
-.rtrial[aria-pressed="true"] .box { background: var(--gc); border-color: var(--gc); }
-.rtrial[aria-pressed="true"] .box::after { content: ""; width: 9px; height: 5px; border-left: 2.5px solid #0a0d0a; border-bottom: 2.5px solid #0a0d0a; transform: translateY(-1px) rotate(-45deg); }
-.rtrial em { font-style: normal; font-size: 12.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.rtog .box { border-color: #5f6d5a; }
+.rtog[aria-pressed="true"] { color: #fff; }
+.rtog[aria-pressed="true"] .box { background: var(--gc); border-color: var(--gc); }
+.rtog[aria-pressed="true"] .box::after { content: ""; width: 9px; height: 5px; border-left: 2.5px solid #0a0d0a; border-bottom: 2.5px solid #0a0d0a; transform: translateY(-1px) rotate(-45deg); }
 .rec .c-note b { color: var(--chalk); }
 
 .mbar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; align-items: center; gap: 12px;
@@ -292,7 +296,7 @@ label { display: grid; gap: 5px; font-weight: 700; font-size: 12px; letter-spaci
 
       <section class="panel" aria-labelledby="h-rec" id="record-panel" hidden>
         <h2 id="h-rec">Record</h2>
-        <p class="note" style="margin-top:0">Tick each trial the Aspirant has passed. Passing a trial card and pressing <b>Add pass to record</b> ticks it for you. The rank works itself out.</p>
+        <p class="note" style="margin-top:0">Tick each trial the Aspirant has passed, then set the date it was passed in the box beside it. Ticking fills in today; <b>Add pass to record</b> uses the trial card's date. The rank works itself out.</p>
         <div class="actions">
           <button class="btn venom" id="r-save" type="button">Save record image</button>
           <button class="btn" id="r-copy" type="button">Copy record text</button>
@@ -548,7 +552,7 @@ function renderRecord() {
     <div class="ladder">${RANKS.map((r, i) => `<span class="${i <= rk.lvl ? "on" : ""}${i === rk.lvl ? " cur" : ""}">${i === 0 ? "Contender" : "V" + i}</span>`).join("")}<span class="${rk.grad ? "on cur" : ""}">Grad</span></div>`;
   const cats = ["adm", "diver", "bots", "squids", "bugs"];
   $("r-grid").innerHTML = cats.map(g => { const c = CATS[g], list = TRIALS.filter(t => t.cat === g), done = list.filter(t => rec[t.id]).length;
-    return `<div class="rcat ${g}" style="--gc:${c.color}"><h4>${c.name}<small class="${g === "adm" ? (done ? "ok" : "") : done >= 3 ? "ok" : ""}">${g === "adm" ? (done ? "Passed" : "Not yet") : `${done} / 4 · ${done >= 3 ? "Graduate ready" : "need 3"}`}</small></h4>${list.map(t => `<button type="button" class="rtrial" data-rec="${t.id}" aria-pressed="${!!rec[t.id]}"><span class="box"></span><span>${t.name}</span><em>${rec[t.id] ? fmtDate(rec[t.id]) : ""}</em></button>`).join("")}</div>`; }).join("");
+    return `<div class="rcat ${g}" style="--gc:${c.color}"><h4>${c.name}<small class="${g === "adm" ? (done ? "ok" : "") : done >= 3 ? "ok" : ""}">${g === "adm" ? (done ? "Passed" : "Not yet") : `${done} / 4 · ${done >= 3 ? "Graduate ready" : "need 3"}`}</small></h4>${list.map(t => `<div class="rtrial"><button type="button" class="rtog" data-rec="${t.id}" aria-pressed="${!!rec[t.id]}"><span class="box"></span><span>${t.name}</span></button>${rec[t.id] ? `<input type="date" class="rdate" data-rec="${t.id}" value="${esc(rec[t.id])}" aria-label="Date ${esc(t.name)} was passed">` : ""}</div>`).join("")}</div>`; }).join("");
   $("r-note").innerHTML = `<b>Ranks:</b> Viper 1 Commando after the Admission Trial, then Viper 2 to 5 at 2, 4, 6 and 8 trials. Graduate needs at least 3 trials in each category and the Viper Rite of Passage. Viper T.O. also needs Ranger Warden or higher and a clean record.`;
 }
 function syncFields() { $("f-asp").value = state.asp; $("f-to").value = state.to; $("f-planet").value = state.planet; $("f-date").value = state.date; }
@@ -581,7 +585,8 @@ async function renderPNG(which = state.view === "record" ? "rec" : "card") {
   try { await document.fonts.ready; } catch (e) {}
   const canvas = await window.html2canvas($(which), { scale: 2, backgroundColor: "#070a07", logging: false, windowWidth: 1300,
     onclone: (doc) => { const el = doc.getElementById(which); el.classList.add("capture");
-      el.querySelectorAll("input[type=number]").forEach(inp => { const sp = doc.createElement("span"); sp.className = "val"; sp.textContent = inp.value; inp.replaceWith(sp); }); } });
+      el.querySelectorAll("input[type=number]").forEach(inp => { const sp = doc.createElement("span"); sp.className = "val"; sp.textContent = inp.value; inp.replaceWith(sp); });
+      el.querySelectorAll("input.rdate").forEach(inp => { const sp = doc.createElement("span"); sp.className = "rdate val"; sp.textContent = fmtDate(inp.value); inp.replaceWith(sp); }); } });
   return await new Promise(ok => canvas.toBlob(ok, "image/png"));
 }
 let downloads = null;
@@ -669,7 +674,8 @@ $("matrix").addEventListener("click", (e) => {
   refresh();
 });
 $("matrix").addEventListener("change", (e) => { const inp = e.target.closest("input[data-act=total]"); if (!inp) return; const v = Math.max(0, Math.min(99999, parseInt(inp.value, 10) || 0)); ts().totals[inp.dataset.k] = v; refresh(); });
-$("r-grid").addEventListener("click", (e) => { const b = e.target.closest(".rtrial"); if (!b) return; const id = b.dataset.rec; if (state.record[id]) delete state.record[id]; else state.record[id] = today(); refresh(); });
+$("r-grid").addEventListener("change", (e) => { const d = e.target.closest(".rdate"); if (!d) return; if (d.value) state.record[d.dataset.rec] = d.value; else delete state.record[d.dataset.rec]; refresh(); });
+$("r-grid").addEventListener("click", (e) => { const b = e.target.closest(".rtog"); if (!b) return; const id = b.dataset.rec; if (state.record[id]) delete state.record[id]; else state.record[id] = today(); refresh(); });
 $("clear").addEventListener("click", () => { $("confirm").hidden = false; });
 $("clear-no").addEventListener("click", () => { $("confirm").hidden = true; });
 $("clear-yes").addEventListener("click", () => { state.trials[state.trial] = blankTrial(); $("confirm").hidden = true; $("preview").hidden = true; setStatus("Trial cleared."); refresh(); });
