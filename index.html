@@ -268,6 +268,7 @@ label { display: grid; gap: 5px; font-weight: 700; font-size: 12px; letter-spaci
         <h2 id="h-details">Trial details</h2>
         <div class="fields">
           <label class="full" for="f-asp">Aspirant<input id="f-asp" autocomplete="off" placeholder="Callsign of the diver on trial"></label>
+          <label class="full" for="f-arank">Aspirant's current rank<input id="f-arank" autocomplete="off" placeholder="Rank held right now"></label>
           <label for="f-to">Viper T.O.<input id="f-to" autocomplete="off" placeholder="Training Officer"></label>
           <label for="f-date">Date<input id="f-date" type="date"></label>
           <label class="full" for="f-planet">Planet / sector<input id="f-planet" autocomplete="off" placeholder="Where the operation ran"></label>
@@ -421,7 +422,7 @@ const RANKS = [["Contender", "Before the Admission Trial"], ["Viper 1 Commando",
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fmtDate = (v) => { if (!v) return ""; const [y, m, d] = v.split("-"); return `${m}/${d}/${y}`; };
 const blankTrial = () => ({ missions: 3, each: {}, counts: {}, totals: {}, done: {}, fam: {}, samples: { c: 0, r: 0, s: 0, l: 0 }, clear: [], deaths: [], honor: false });
-const blank = () => ({ view: "trial", trial: "vaa", asp: "", to: "", planet: "", date: today(), trials: {}, record: {} });
+const blank = () => ({ view: "trial", trial: "vaa", asp: "", arank: "", to: "", planet: "", date: today(), trials: {}, record: {} });
 let state = blank();
 try { const s = JSON.parse(localStorage.getItem("viper-scorecard-draft") || "null"); if (s && s.trials && TBYID[s.trial]) state = Object.assign(blank(), s); } catch (e) {}
 const persist = () => { try { localStorage.setItem("viper-scorecard-draft", JSON.stringify(state)); } catch (e) {} };
@@ -555,7 +556,7 @@ function renderRecord() {
     return `<div class="rcat ${g}" style="--gc:${c.color}"><h4>${c.name}<small class="${g === "adm" ? (done ? "ok" : "") : done >= 3 ? "ok" : ""}">${g === "adm" ? (done ? "Passed" : "Not yet") : `${done} / 4 · ${done >= 3 ? "Graduate ready" : "need 3"}`}</small></h4>${list.map(t => `<div class="rtrial"><button type="button" class="rtog" data-rec="${t.id}" aria-pressed="${!!rec[t.id]}"><span class="box"></span><span>${t.name}</span></button>${rec[t.id] ? `<input type="date" class="rdate" data-rec="${t.id}" value="${esc(rec[t.id])}" aria-label="Date ${esc(t.name)} was passed">` : ""}</div>`).join("")}</div>`; }).join("");
   $("r-note").innerHTML = `<b>Ranks:</b> Viper 1 Commando after the Admission Trial, then Viper 2 to 5 at 2, 4, 6 and 8 trials. Graduate needs at least 3 trials in each category and the Viper Rite of Passage. Viper T.O. also needs Ranger Warden or higher and a clean record.`;
 }
-function syncFields() { $("f-asp").value = state.asp; $("f-to").value = state.to; $("f-planet").value = state.planet; $("f-date").value = state.date; }
+function syncFields() { $("f-asp").value = state.asp; $("f-arank").value = state.arank || ""; $("f-to").value = state.to; $("f-planet").value = state.planet; $("f-date").value = state.date; }
 function refresh() {
   applyTheme();
   const rv = state.view === "record";
@@ -682,8 +683,113 @@ $("clear-yes").addEventListener("click", () => { state.trials[state.trial] = bla
 $("r-clear").addEventListener("click", () => { $("r-confirm").hidden = false; });
 $("r-clear-no").addEventListener("click", () => { $("r-confirm").hidden = true; });
 $("r-clear-yes").addEventListener("click", () => { state.record = {}; $("r-confirm").hidden = true; $("preview").hidden = true; setStatus("Record cleared."); refresh(); });
-[["f-asp", "asp"], ["f-to", "to"], ["f-planet", "planet"], ["f-date", "date"]].forEach(([id, k]) => $(id).addEventListener("input", () => { state[k] = $(id).value; refresh(); }));
+[["f-asp", "asp"], ["f-arank", "arank"], ["f-to", "to"], ["f-planet", "planet"], ["f-date", "date"]].forEach(([id, k]) => $(id).addEventListener("input", () => { state[k] = $(id).value; refresh(); }));
 syncFields(); refresh();
+window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { if (state.view !== "trial") return { eligible: false };
+  const t = cur(), ev = evaluate();
+  return { eligible: ev.res.cls === "pass", program: "V.I.P.E.R. Academy", trial: t.cat === "adm" ? t.name : `${CATS[t.cat].name} · ${t.name}`,
+    people: [{ label: "Aspirant", callsign: state.asp, rank: state.arank }], date: state.date, officerLabel: "Viper T.O.", officer: state.to }; } };
+</script>
+
+<style id="lg-style">
+.lg-back { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.62); display: grid; place-items: center; padding: 16px; }
+.lg-box { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #15181c; color: #eef1f4; border: 1px solid #3c434c; border-radius: 12px; padding: 18px; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; box-shadow: 0 20px 60px rgba(0,0,0,.6); text-align: left; }
+.lg-box h3 { margin: 0 0 2px; font: 700 20px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0; text-transform: none; color: #fff; }
+.lg-pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0b0d10; border: 1px solid #2c3238; border-radius: 8px; padding: 10px 12px; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; margin: 10px 0 4px; color: #dfe6ee; }
+.lg-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.lg-b { min-height: 44px; padding: 10px 16px; border-radius: 8px; border: 1px solid #4a525c; background: #232830; color: #eef1f4; font: 600 15px system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: 0; text-transform: none; cursor: pointer; }
+.lg-b:disabled { opacity: .5; cursor: default; }
+.lg-b.lg-go { background: #5865f2; border-color: #5865f2; color: #fff; }
+.lg-in { display: block; width: 100%; box-sizing: border-box; min-height: 44px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid #4a525c; background: #0b0d10; color: #eef1f4; font: 16px system-ui, -apple-system, "Segoe UI", sans-serif; }
+.lg-in:focus, .lg-b:focus-visible { outline: 2px solid #8f99ff; outline-offset: 1px; }
+.lg-msg { display: block; margin: 8px 0 0; font-size: 14px; color: #aab3bd; }
+.lg-msg.ok { color: #7ee2a8; font-weight: 600; }
+.lg-msg.err { color: #ff9b8f; }
+.lg-small { background: none; border: 0; color: #9aa5b1; text-decoration: underline; cursor: pointer; padding: 10px 0 0; font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; }
+</style>
+<script>
+/* Logistics hand-off: after a pass, offer to post callsign, rank and confirmation to #logistics-office through a Discord webhook.
+   The webhook link is never in this page's code; each TO pastes it once and it stays in their own browser. */
+(function () {
+  if (window.claude) return; // Claude pages can't reach Discord; this only runs on the public pages.
+  const C = window.LOGI_CARD; if (!C) return;
+  const KEY = "sd-logistics-webhook", SENT = "sd-logistics-sent";
+  const RX = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+  const getHook = () => { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } };
+  const setHook = (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {} };
+  const sentList = () => { try { return JSON.parse(localStorage.getItem(SENT) || "[]"); } catch (e) { return []; } };
+  const markSent = (k) => { try { const l = sentList().filter((x) => x !== k); l.push(k); localStorage.setItem(SENT, JSON.stringify(l.slice(-300))); } catch (e) {} };
+  const md = (s) => String(s || "").replace(/([\\*_~`|>])/g, "\\$1");
+  const nice = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).split("-"); return y && m && d ? `${m}/${d}/${y}` : iso; };
+
+  function build() {
+    let i; try { i = C.info(); } catch (e) { return null; }
+    if (!i || !i.eligible) return null;
+    const many = i.people.length > 1, missing = [];
+    i.people.forEach((p) => { const w = many ? `${p.label}'s ` : ""; if (!String(p.callsign || "").trim()) missing.push(`${w}callsign`); if (!String(p.rank || "").trim()) missing.push(`${w}rank`); });
+    const lines = [`✅ **Trial passed** · ${md(i.program)}`, `**${md(i.trial)}**`];
+    i.people.forEach((p) => lines.push(`${many ? md(p.label) + ": " : ""}Callsign **${md(String(p.callsign || "").trim() || "—")}** · Rank **${md(String(p.rank || "").trim() || "—")}**`));
+    lines.push(`Date ${nice(i.date) || "—"} · ${md(i.officerLabel)}: ${md(String(i.officer || "").trim() || "—")}`);
+    const key = [i.program, i.trial, i.people.map((p) => String(p.callsign || "").trim().toLowerCase()).join("+"), i.date].join("|");
+    const plain = lines.join("\n").replace(/\*\*/g, "").replace(/\\(.)/g, "$1");
+    return { text: lines.join("\n"), plain, missing, key };
+  }
+
+  const anchor = document.getElementById(C.anchor); if (!anchor) return;
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = ((anchor.className || "").replace(/\b(primary|venom|tier)\b/g, "") + " lg-open").trim();
+  btn.textContent = "Inform Logistics"; btn.hidden = true;
+  anchor.insertAdjacentElement("afterend", btn);
+  const sync = () => { btn.hidden = !build(); };
+  setInterval(sync, 700); sync();
+  btn.addEventListener("click", () => open(false));
+  (C.saveIds || []).forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener("click", () => { const m = build(); if (m && !sentList().includes(m.key)) setTimeout(() => open(true), 650); }); });
+
+  let back = null, busy = false;
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  function close() { if (back) { back.remove(); back = null; document.removeEventListener("keydown", onKey); btn.focus(); } }
+  function open(auto) {
+    const m = build(); if (!m || (auto && sentList().includes(m.key)) || back) return;
+    back = document.createElement("div"); back.className = "lg-back";
+    back.setAttribute("role", "dialog"); back.setAttribute("aria-modal", "true"); back.setAttribute("aria-labelledby", "lg-h");
+    back.addEventListener("click", (e) => { if (e.target === back) close(); });
+    document.body.appendChild(back); document.addEventListener("keydown", onKey);
+    render(); const f = back.querySelector("#lg-in") || back.querySelector(".lg-go"); if (f && !f.disabled) f.focus();
+  }
+  function status(t, cls) { const s = back && back.querySelector(".lg-status"); if (s) { s.textContent = t; s.className = "lg-msg lg-status " + (cls || ""); } }
+  function render(note, cls) {
+    const m = build(); if (!m) { close(); return; }
+    const hook = getHook(), already = sentList().includes(m.key);
+    back.innerHTML = `<div class="lg-box"><h3 id="lg-h">Inform Logistics?</h3><span class="lg-msg">This message goes to #logistics-office:</span><div class="lg-pre"></div>
+      ${m.missing.length ? `<span class="lg-msg err">Fill in the ${m.missing.join(", ")} on the card first, then press Inform Logistics again.</span>` : ""}
+      ${hook ? "" : `<label class="lg-msg" for="lg-in">Paste the Logistics webhook link from your TO channel. It's saved in this browser only, and works on every SD scorecard.</label><input class="lg-in" id="lg-in" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…">`}
+      ${already ? `<span class="lg-msg">Already sent from this browser.</span>` : ""}
+      <div class="lg-row"><button class="lg-b lg-go" type="button" ${m.missing.length ? "disabled" : ""}>${already ? "Send again" : "Send to Logistics"}</button><button class="lg-b lg-no" type="button">${already ? "Close" : "Not now"}</button></div>
+      <span class="lg-msg lg-status ${cls || ""}" role="status">${note || ""}</span>
+      ${hook ? `<button class="lg-small lg-forget" type="button">Change the Logistics link</button>` : ""}</div>`;
+    back.querySelector(".lg-pre").textContent = m.plain;
+    back.querySelector(".lg-no").addEventListener("click", close);
+    back.querySelector(".lg-go").addEventListener("click", send);
+    const fg = back.querySelector(".lg-forget"); if (fg) fg.addEventListener("click", () => { setHook(""); render("Link removed from this browser. Paste the new one to send."); const i = back.querySelector("#lg-in"); if (i) i.focus(); });
+    const inp = back.querySelector("#lg-in"); if (inp) inp.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+  }
+  async function send() {
+    if (busy || !back) return;
+    const m = build(); if (!m || m.missing.length) return;
+    let hook = getHook(); const inp = back.querySelector("#lg-in");
+    if (!hook) { const v = (inp ? inp.value : "").trim(); if (!RX.test(v)) { status("That isn't a Discord webhook link. It starts with https://discord.com/api/webhooks/", "err"); return; } hook = v; }
+    busy = true; const go = back.querySelector(".lg-go"); go.disabled = true; status("Sending…");
+    try {
+      const r = await fetch(hook + "?wait=true", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "SD Scorecards", content: m.text, allowed_mentions: { parse: [] } }) });
+      if (r.ok) { if (!getHook()) setHook(hook); markSent(m.key); render("Sent to #logistics-office.", "ok"); }
+      else if (r.status === 401 || r.status === 404) { setHook(""); render("Discord turned that link down; it may have been reset. Paste the current link from your TO channel.", "err"); }
+      else if (r.status === 429) { status("Discord is busy. Wait a few seconds, then try again.", "err"); }
+      else { status(`Discord answered with an error (${r.status}). Try again in a moment.`, "err"); }
+    } catch (e) { status("Couldn't reach Discord. Check your connection and try again.", "err"); }
+    busy = false; const g2 = back && back.querySelector(".lg-go"); if (g2 && !back.querySelector(".lg-msg.ok")) g2.disabled = false;
+  }
+})();
 </script>
 
 </body></html>
