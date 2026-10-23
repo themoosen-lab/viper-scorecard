@@ -594,10 +594,14 @@ let downloads = null;
 (async () => { try { downloads = await window.claude?.use?.("downloads"); } catch (e) { downloads = null; } })();
 const slug = (x) => (x || "").replace(/[^A-Za-z0-9-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 const fileName = () => state.view === "record" ? `Viper_Record_${slug(state.asp) || "aspirant"}_${today()}.png` : `Viper_${slug(cur().name.replace(/^The /, ""))}_${slug(state.asp) || "aspirant"}_${state.date || "undated"}.png`;
-const canShareFiles = () => {
+// Phones that can share files. iPhone saves through the share sheet ("Save Image"); Android's share sheet has no plain
+// "save to gallery", so Android downloads the image instead and keeps Share as an optional button under the preview.
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const canShareAny = () => {
   try { return !window.claude && !!navigator.canShare && matchMedia("(pointer: coarse)").matches && navigator.canShare({ files: [new File([new Blob(["x"], { type: "image/png" })], "t.png", { type: "image/png" })] }); }
   catch (e) { return false; }
 };
+const canShareFiles = () => isIOS() && canShareAny();
 // iPhone Safari only opens the share sheet straight from a tap, so on touch devices the finished image is built ahead of time.
 let ready = { key: null, blob: null }, lastBlob = null, renderTimer = null;
 const stateKey = () => JSON.stringify([state.view, state.trial, state.asp, state.to, state.planet, state.date, state.trials[state.trial], state.record]);
@@ -607,7 +611,7 @@ function scheduleRender() {
   renderTimer = setTimeout(async () => { const k = stateKey(); if (ready.key === k) return; try { const b = await renderPNG(); if (stateKey() === k) ready = { key: k, blob: b }; } catch (e) {} }, 900);
 }
 function setStatus(msg, err) { const el = $(state.view === "record" ? "r-status" : "status"); el.textContent = msg; el.className = "status" + (err ? " err" : ""); }
-function showPreview(blob, note) { lastBlob = blob; $("prev-img").src = URL.createObjectURL(blob); $("preview").hidden = false; $("share-now").hidden = !canShareFiles(); if (note) $("prev-note").textContent = note; }
+function showPreview(blob, note) { lastBlob = blob; $("prev-img").src = URL.createObjectURL(blob); $("preview").hidden = false; $("share-now").hidden = !canShareAny(); if (note) $("prev-note").textContent = note; }
 function shareNow(blob) {
   navigator.share({ files: [new File([blob], fileName(), { type: "image/png" })], title: "Viper card" })
     .then(() => setStatus("Shared. Pick Save Image for Photos, or Discord to post it."))
