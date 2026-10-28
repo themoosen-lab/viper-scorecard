@@ -714,12 +714,100 @@ $("crew-more").addEventListener("click", (e) => { const b = e.target.closest("[d
 $("crew-add").addEventListener("click", () => { if (moreList().length >= 3) return; moreList().push({ name: "", rank: "" }); renderCrew(); refresh(); const ins = document.querySelectorAll('#crew-more input[data-ck="name"]'); if (ins.length) ins[ins.length - 1].focus(); });
 [["f-asp", "asp"], ["f-arank", "arank"], ["f-to", "to"], ["f-planet", "planet"], ["f-date", "date"]].forEach(([id, k]) => $(id).addEventListener("input", () => { state[k] = $(id).value; refresh(); }));
 syncFields(); refresh();
+window.DIVER_CARDS = { key: "viper-scorecard-cards", anchor: ".wrap > .layout", label: "Aspirant", article: "an", max: 4, nameField: "f-asp", acc: "var(--cat)", ink: "var(--cat-ink)",
+  note: "Each Aspirant gets their own card and their own service record. A new card starts as a copy of the trial marks; change anything that was different for that Aspirant. The T.O., planet and date are shared.",
+  shared: { to: "f-to", planet: "f-planet", date: "f-date" }, nameOf: (s) => s.asp,
+  fresh: (s, p) => Object.assign(JSON.parse(JSON.stringify(s)), { asp: (p && p.name) || "", arank: (p && p.rank) || "", record: {}, more: [] }),
+  badge: () => { if (state.view !== "trial") return null; const r = evaluate().res; return r.cls === "pass" ? { cls: "pass", txt: "Pass" } : r.cls === "fail" ? { cls: "fail", txt: "Fail" } : null; },
+  summary: () => summaryText(), copy: (t) => copyText(t) };
 window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { if (state.view !== "trial") return { eligible: false };
   const t = cur(), ev = evaluate();
   return { eligible: ev.res.cls === "pass", program: "V.I.P.E.R. Academy", trial: t.cat === "adm" ? t.name : `${CATS[t.cat].name} · ${t.name}`,
     people: aspUsed().map((p, i, a) => ({ label: a.length > 1 ? `Aspirant ${i + 1}` : "Aspirant", callsign: p.name, rank: p.rank })), date: state.date, officerLabel: "Viper T.O.", officer: state.to }; } };
 </script>
 
+<style id="dc-style">
+.dcards { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; }
+.dcards[hidden] { display: none; }
+.dc-lab { font-family: var(--display); font-size: 17px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-right: 4px; }
+.dc { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 14px; font: 600 16px var(--body); color: var(--chalk); background: var(--plate); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; max-width: 100%; letter-spacing: 0; text-transform: none; }
+.dc b { font-weight: 700; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc .n { font-family: var(--display); font-size: 17px; color: var(--dc-acc); }
+.dc i { font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,.08); color: var(--dim); }
+.dc i.pass { background: var(--pass); color: #fff; } .dc i.fail, .dc i.dq { background: var(--fail); color: #fff; }
+.dc[aria-selected="true"] { background: var(--dc-acc); border-color: var(--dc-acc); color: var(--dc-ink); }
+.dc[aria-selected="true"] .n { color: var(--dc-ink); }
+.dc-add { border-style: dashed; color: var(--dc-acc); font-family: var(--display); font-size: 17px; letter-spacing: .06em; text-transform: uppercase; }
+.dc-rm { background: transparent; color: var(--dim); font-size: 14px; }
+.dc-rm.arm { color: #fff; border-color: var(--fail); background: var(--fail); }
+.dc-note { flex-basis: 100%; color: var(--dim); font-size: 14px; }
+#crew-more, #crew-add { display: none !important; }
+@media (max-width: 560px) { .dc-lab { flex-basis: 100%; font-size: 15px; } .dc { min-height: 40px; padding: 5px 11px; font-size: 15px; } .dc b { max-width: 11ch; } .dc-add, .dc-rm { font-size: 14px; } }
+</style>
+<script>
+/* Diver cards: one card per diver when several are tested on the same run. Each card keeps its own name, rank and marks;
+   the officer, date and similar fields are shared. Saving and Inform Logistics work on the card on screen. */
+(function () {
+  const C = window.DIVER_CARDS; if (!C) return;
+  const anchor = document.querySelector(C.anchor); if (!anchor) return;
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  let set = null;
+  try { set = JSON.parse(localStorage.getItem(C.key) || "null"); } catch (e) {}
+  if (!set || !Array.isArray(set.cards) || !set.cards.length) set = { idx: 0, cards: [] };
+  set.idx = Math.min(Math.max(0, set.idx | 0), Math.max(0, set.cards.length - 1));
+  set.cards[set.idx] = clone(state); // the page's own draft is the newest copy of the card on screen
+  // the first multi-diver version listed extra divers as rows on one card: give each their own card
+  if (Array.isArray(state.more) && state.more.length) {
+    state.more.filter((p) => String(p.name || "").trim() || String(p.rank || "").trim()).forEach((p) => { if (set.cards.length < C.max) set.cards.push(C.fresh(state, p)); });
+    state.more = []; set.cards[set.idx] = clone(state);
+  }
+  const save = () => { try { localStorage.setItem(C.key, JSON.stringify(set)); } catch (e) {} };
+  const withState = (c, fn) => { const prev = state; state = c; try { return fn(); } finally { state = prev; } };
+  let arm = false;
+  const box = document.createElement("div"); box.className = "dcards"; box.id = "dcards"; box.setAttribute("aria-label", C.label + " cards");
+  box.style.setProperty("--dc-acc", C.acc); box.style.setProperty("--dc-ink", C.ink);
+  anchor.insertAdjacentElement("beforebegin", box);
+  function render() {
+    const n = set.cards.length;
+    box.innerHTML = `<span class="dc-lab">${esc(C.label)} cards</span>` + set.cards.map((c, i) => {
+      const live = i === set.idx ? state : c; let b = null; try { b = withState(live, C.badge); } catch (e) {}
+      const nm = String(C.nameOf(live) || "").trim();
+      return `<button type="button" class="dc" data-dc="${i}" aria-selected="${i === set.idx}" aria-label="Card ${i + 1}: ${esc(nm || "no name yet")}"><span class="n">${i + 1}</span><b>${esc(nm || "Unnamed")}</b>${b ? `<i class="${b.cls}">${esc(b.txt)}</i>` : ""}</button>`;
+    }).join("")
+      + (n < C.max ? `<button type="button" class="dc dc-add" id="dc-add">+ Add ${C.article} ${esc(C.label.toLowerCase())} card</button>` : "")
+      + (n > 1 ? `<button type="button" class="dc dc-rm${arm ? " arm" : ""}" id="dc-rm">${arm ? `Tap again to remove card ${set.idx + 1}` : `Remove card ${set.idx + 1}`}</button><span class="dc-note">${esc(C.note)}</span>` : "");
+  }
+  function go(i, keepCurrent) {
+    if (keepCurrent) set.cards[set.idx] = clone(state);
+    set.idx = i; state = clone(set.cards[i]); arm = false;
+    ["preview", "confirm"].forEach((id) => { const el = document.getElementById(id); if (el) el.hidden = true; });
+    if (typeof setStatus === "function") try { setStatus(""); } catch (e) {}
+    const hadFocus = box.contains(document.activeElement); syncFields(); refresh(); render();
+    if (hadFocus) { const sel = box.querySelector('[aria-selected="true"]'); if (sel) sel.focus(); }
+    window.scrollTo({ top: Math.max(0, box.getBoundingClientRect().top + window.scrollY - 12) });
+  }
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.dc != null) { if (+b.dataset.dc !== set.idx) go(+b.dataset.dc, true); return; }
+    if (b.id === "dc-add") { if (set.cards.length >= C.max) return; set.cards[set.idx] = clone(state); set.cards.push(C.fresh(state, null)); go(set.cards.length - 1, false); const f = document.getElementById(C.nameField); if (f) f.focus(); return; }
+    if (b.id === "dc-rm") { if (!arm) { arm = true; render(); document.getElementById("dc-rm").focus(); return; } set.cards.splice(set.idx, 1); go(Math.min(set.idx, set.cards.length - 1), false); }
+  });
+  // shared fields follow the officer's edits onto every card
+  Object.entries(C.shared).forEach(([k, id]) => { const el = document.getElementById(id); if (!el) return;
+    ["input", "change"].forEach((ev) => el.addEventListener(ev, () => { set.cards.forEach((c) => { c[k] = el.value; }); })); });
+  // Copy result text copies every diver's card when there is more than one
+  const copyBtn = document.getElementById("copy");
+  if (copyBtn) copyBtn.addEventListener("click", (e) => {
+    if (set.cards.length < 2) return; e.stopImmediatePropagation(); e.preventDefault();
+    set.cards[set.idx] = clone(state);
+    C.copy(set.cards.map((c) => withState(c, C.summary)).join("\n\n"));
+  }, true);
+  const orig = window.refresh;
+  window.refresh = function () { const r = orig.apply(this, arguments); set.cards[set.idx] = clone(state); save(); if (!box.contains(document.activeElement)) render(); return r; };
+  syncFields(); refresh();
+})();
+</script>
 <style id="lg-style">
 .lg-back { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.62); display: grid; place-items: center; padding: 16px; }
 .lg-box { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #15181c; color: #eef1f4; border: 1px solid #3c434c; border-radius: 12px; padding: 18px; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; box-shadow: 0 20px 60px rgba(0,0,0,.6); text-align: left; }
