@@ -321,6 +321,24 @@ label { display: grid; gap: 5px; font-weight: 700; font-size: 12px; letter-spaci
 
 <div class="mbar" aria-label="Trial so far"><div class="mnum" id="m-num">0/0</div><span class="pill open" id="m-pill">In progress</span><button class="btn primary" id="m-save" type="button">Save image</button></div>
 
+<style id="phone-fit">
+/* Phone fit: keep the trial card inside the screen (header label and counter rows used to push the page sideways). */
+@container (max-width: 560px) {
+  .c-head { flex-wrap: wrap; row-gap: 8px; }
+  .c-head > div { flex: 1 1 0; min-width: 0; }
+  .c-head .eyebrow, .c-head .chal { overflow-wrap: anywhere; }
+  .c-head .catb { order: -1; flex: 0 0 100%; position: static; display: block; margin: 0; padding: 0; background: none; color: var(--cat); font-size: 11px; }
+  .wide { padding: 8px 10px; gap: 6px; }
+  .wide .stp { flex-wrap: wrap; max-width: 100%; }
+  .wide .stp input { width: 54px; }
+  .stp button.big { padding: 0 5px; font-size: 12px; }
+}
+@media (pointer: coarse) { .dcell .stp button { height: 30px; } .stp button { min-height: 30px; } }
+@container (max-width: 380px) {
+  .c-head img { width: 52px; height: 52px; }
+  .c-head h2 { font-size: 30px; }
+}
+</style>
 <style id="crew-style">
 #o-asp { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.3; }
 .crew { grid-column: 1 / -1; display: grid; gap: 10px; }
