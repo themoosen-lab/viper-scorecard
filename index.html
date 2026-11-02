@@ -723,7 +723,7 @@ window.DIVER_CARDS = { key: "viper-scorecard-cards", anchor: ".wrap > .layout", 
 window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { if (state.view !== "trial") return { eligible: false };
   const t = cur(), ev = evaluate();
   return { eligible: ev.res.cls === "pass", program: "V.I.P.E.R. Academy", trial: t.cat === "adm" ? t.name : `${CATS[t.cat].name} · ${t.name}`,
-    people: aspUsed().map((p, i, a) => ({ label: a.length > 1 ? `Aspirant ${i + 1}` : "Aspirant", callsign: p.name, rank: p.rank })), date: state.date, officerLabel: "Viper T.O.", officer: state.to }; } };
+    people: aspUsed().map((p, i, a) => ({ label: a.length > 1 ? `Aspirant ${i + 1}` : "Aspirant", callsign: p.name, rank: p.rank, callsignSel: i ? null : "#f-asp", rankSel: i ? null : "#f-arank" })), date: state.date, officerLabel: "Viper T.O.", officer: state.to }; } };
 </script>
 
 <style id="dc-style">
@@ -822,6 +822,8 @@ window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { 
 .lg-msg { display: block; margin: 8px 0 0; font-size: 14px; color: #aab3bd; }
 .lg-msg.ok { color: #7ee2a8; font-weight: 600; }
 .lg-msg.err { color: #ff9b8f; }
+.lg-fix { display: block; margin-top: 10px; font-size: 14px; color: #dfe6ee; }
+.lg-fix .lg-in { margin-top: 4px; }
 .lg-small { background: none; border: 0; color: #9aa5b1; text-decoration: underline; cursor: pointer; padding: 10px 0 0; font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; }
 </style>
 <script>
@@ -836,6 +838,7 @@ window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { 
   const setHook = (v) => { try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch (e) {} };
   const sentList = () => { try { return JSON.parse(localStorage.getItem(SENT) || "[]"); } catch (e) { return []; } };
   const markSent = (k) => { try { const l = sentList().filter((x) => x !== k); l.push(k); localStorage.setItem(SENT, JSON.stringify(l.slice(-300))); } catch (e) {} };
+  const esc = (s) => String(s || "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const md = (s) => String(s || "").replace(/([\\*_~`|>])/g, "\\$1");
   const nice = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).split("-"); return y && m && d ? `${m}/${d}/${y}` : iso; };
 
@@ -843,7 +846,11 @@ window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { 
     let i; try { i = C.info(); } catch (e) { return null; }
     if (!i || !i.eligible) return null;
     const many = i.people.length > 1, missing = [];
-    i.people.forEach((p) => { const w = many ? `${p.label}'s ` : ""; if (!String(p.callsign || "").trim()) missing.push(`${w}callsign`); if (!String(p.rank || "").trim()) missing.push(`${w}rank`); });
+    i.people.forEach((p) => {
+      const who = String(p.callsign || "").trim() || (many ? p.label : "");
+      if (!String(p.callsign || "").trim()) missing.push({ id: "c" + missing.length, txt: `${many ? p.label + "'s " : ""}callsign`, label: many ? `${p.label}'s callsign` : "Callsign", sel: p.callsignSel });
+      if (!String(p.rank || "").trim()) missing.push({ id: "r" + missing.length, txt: `${who ? who + "'s " : ""}current rank`, label: who ? `${who}'s current rank (the rank they hold now)` : "Current rank (the rank they hold now)", sel: p.rankSel });
+    });
     const lines = [`✅ **Trial passed** · ${md(i.program)}`, `**${md(i.trial)}**`];
     i.people.forEach((p) => lines.push(`${many ? md(p.label) + ": " : ""}Callsign **${md(String(p.callsign || "").trim() || "—")}** · Rank **${md(String(p.rank || "").trim() || "—")}**`));
     lines.push(`Date ${nice(i.date) || "—"} · ${md(i.officerLabel)}: ${md(String(i.officer || "").trim() || "—")}`);
@@ -871,20 +878,32 @@ window.LOGI_CARD = { anchor: "save", saveIds: ["save", "m-save"], info: () => { 
     back.setAttribute("role", "dialog"); back.setAttribute("aria-modal", "true"); back.setAttribute("aria-labelledby", "lg-h");
     back.addEventListener("click", (e) => { if (e.target === back) close(); });
     document.body.appendChild(back); document.addEventListener("keydown", onKey);
-    render(); const f = back.querySelector("#lg-in") || back.querySelector(".lg-go"); if (f && !f.disabled) f.focus();
+    render(); const f = back.querySelector("[data-fix]") || back.querySelector("#lg-in") || back.querySelector(".lg-go"); if (f && !f.disabled) f.focus();
   }
   function status(t, cls) { const s = back && back.querySelector(".lg-status"); if (s) { s.textContent = t; s.className = "lg-msg lg-status " + (cls || ""); } }
+  // a missing callsign or rank can be typed straight into the box; it fills in the same field on the card
+  const fieldOf = (x) => { try { return x.sel ? document.querySelector(x.sel) : null; } catch (e) { return null; } };
+  function liveUpdate() {
+    const m = build(); if (!m || !back) return;
+    back.querySelector(".lg-pre").textContent = m.plain;
+    const go = back.querySelector(".lg-go"); if (go && !busy) go.disabled = m.missing.length > 0;
+    const w = back.querySelector(".lg-warn"); if (w) w.hidden = m.missing.length === 0;
+  }
   function render(note, cls) {
     const m = build(); if (!m) { close(); return; }
     const hook = getHook(), already = sentList().includes(m.key);
+    const fixable = m.missing.filter((x) => fieldOf(x)), stuck = m.missing.filter((x) => !fieldOf(x));
     back.innerHTML = `<div class="lg-box"><h3 id="lg-h">Inform Logistics?</h3><span class="lg-msg">This message goes to #logistics-office:</span><div class="lg-pre"></div>
-      ${m.missing.length ? `<span class="lg-msg err">Fill in the ${m.missing.join(", ")} on the card first, then press Inform Logistics again.</span>` : ""}
+      ${m.missing.length ? `<span class="lg-msg err lg-warn">Logistics needs ${m.missing.map((x) => x.txt).join(" and ")} before this can be sent.${stuck.length ? " Fill it in on the card, then press Inform Logistics again." : " Type it below; it fills in on the card too."}</span>` : ""}
+      ${fixable.map((x) => `<label class="lg-fix" for="lg-f-${x.id}">${esc(x.label)}<input class="lg-in" id="lg-f-${x.id}" data-fix="${x.id}" autocomplete="off"></label>`).join("")}
       ${hook ? "" : `<label class="lg-msg" for="lg-in">Paste the Logistics webhook link from your TO channel. It's saved in this browser only, and works on every SD scorecard.</label><input class="lg-in" id="lg-in" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…">`}
       ${already ? `<span class="lg-msg">Already sent from this browser.</span>` : ""}
       <div class="lg-row"><button class="lg-b lg-go" type="button" ${m.missing.length ? "disabled" : ""}>${already ? "Send again" : "Send to Logistics"}</button><button class="lg-b lg-no" type="button">${already ? "Close" : "Not now"}</button></div>
       <span class="lg-msg lg-status ${cls || ""}" role="status">${note || ""}</span>
       ${hook ? `<button class="lg-small lg-forget" type="button">Change the Logistics link</button>` : ""}</div>`;
     back.querySelector(".lg-pre").textContent = m.plain;
+    fixable.forEach((x) => { const inp = back.querySelector(`[data-fix="${x.id}"]`), f = fieldOf(x);
+      inp.addEventListener("input", () => { f.value = inp.value; f.dispatchEvent(new Event("input", { bubbles: true })); liveUpdate(); }); });
     back.querySelector(".lg-no").addEventListener("click", close);
     back.querySelector(".lg-go").addEventListener("click", send);
     const fg = back.querySelector(".lg-forget"); if (fg) fg.addEventListener("click", () => { setHook(""); render("Link removed from this browser. Paste the new one to send."); const i = back.querySelector("#lg-in"); if (i) i.focus(); });
